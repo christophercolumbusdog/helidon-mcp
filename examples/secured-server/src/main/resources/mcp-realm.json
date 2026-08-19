@@ -716,6 +716,22 @@
       "nodeReRegistrationTimeout": -1,
       "protocolMappers": [
         {
+          "id": "3f0c9b4e-8a1d-4e4a-9a2f-1a2b3c4d5e6f",
+          "name": "realm roles as groups claim",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "introspection.token.claim": "true",
+            "multivalued": "true",
+            "userinfo.token.claim": "false",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "groups",
+            "jsonType.label": "String"
+          }
+        },
+        {
           "id": "d63dad7c-8ca4-4c02-b173-135a9803add3",
           "name": "Client ID",
           "protocol": "openid-connect",
