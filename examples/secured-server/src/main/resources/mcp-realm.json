@@ -47,6 +47,15 @@
   "roles": {
     "realm": [
       {
+        "id": "6a2fbb6a-6e9a-4b7b-9a0c-2a6bd0e6e2f1",
+        "name": "mcp-admin",
+        "description": "Grants access to role-protected-tool in the MCP secured-server example",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "f955df49-357f-4dde-97fb-db20887094d9",
+        "attributes": {}
+      },
+      {
         "id": "2bd9a7db-45ca-4fc1-8086-9f68c1bbb336",
         "name": "uma_authorization",
         "description": "${role_uma_authorization}",

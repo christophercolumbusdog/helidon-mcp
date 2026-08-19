@@ -199,6 +199,49 @@ public final class Mcp {
     }
 
     /**
+     * Annotation to require one or more user roles to call an {@link io.helidon.extensions.mcp.server.Mcp.Tool}.
+     * <p>
+     * The caller must have at least one of the listed roles. Role names are case-sensitive. A blank role is
+     * invalid and reported as a {@code CodegenException} at compile time. When combined with
+     * {@link io.helidon.extensions.mcp.server.Mcp.PolicyStatement} on the same method, both checks must pass.
+     * <p>
+     * Role evaluation requires an authorization integration, such as the optional Helidon Security
+     * integration module. Without such an integration, calls to the protected tool are denied.
+     */
+    @Target(METHOD)
+    @Retention(RUNTIME)
+    public @interface RolesAllowed {
+        /**
+         * User roles allowed to call the annotated tool. The caller needs at least one of the listed roles.
+         *
+         * @return the allowed roles
+         */
+        String[] value();
+    }
+
+    /**
+     * Annotation to require a Helidon ABAC policy statement to call an {@link io.helidon.extensions.mcp.server.Mcp.Tool}.
+     * <p>
+     * The policy statement is evaluated using the application's configured Helidon policy executor. A blank
+     * policy statement is invalid and reported as a {@code CodegenException} at compile time. This annotation
+     * is not repeatable. When combined with {@link io.helidon.extensions.mcp.server.Mcp.RolesAllowed} on the
+     * same method, both checks must pass.
+     * <p>
+     * Policy evaluation requires an authorization integration, such as the optional Helidon Security
+     * integration module. Without such an integration, calls to the protected tool are denied.
+     */
+    @Target(METHOD)
+    @Retention(RUNTIME)
+    public @interface PolicyStatement {
+        /**
+         * Policy expression evaluated for the annotated tool.
+         *
+         * @return the policy statement
+         */
+        String value();
+    }
+
+    /**
      * Annotation to define an MCP Prompt.
      * A prompt is a none static method and must be located in a class annotated with
      * {@link io.helidon.extensions.mcp.server.Mcp.Server}. This way, the prompt is

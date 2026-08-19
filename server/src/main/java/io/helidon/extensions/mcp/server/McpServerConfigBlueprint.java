@@ -183,4 +183,14 @@ interface McpServerConfigBlueprint extends Prototype.Factory<McpServerFeature> {
      */
     @Option.Configured
     Optional<String> instructions();
+
+    /**
+     * Authorizer used to evaluate {@link McpTool} authorization metadata before a protected tool is invoked.
+     * When this option is not set, the server resolves an authorizer through {@link java.util.ServiceLoader};
+     * see {@link McpToolAuthorizer} for the full resolution order. This option is the explicit configuration
+     * path for tests and custom authorization integrations.
+     *
+     * @return the tool authorizer
+     */
+    Optional<McpToolAuthorizer> toolAuthorizer();
 }

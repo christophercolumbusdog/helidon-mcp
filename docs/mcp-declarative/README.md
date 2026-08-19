@@ -134,6 +134,65 @@ McpToolContent resource = McpToolContents.resourceContent("http://path");
 McpToolContent image = McpToolContents.imageContent("base64", MediaTypes.create("image/png"));
 ```
 
+#### Per-Tool Authorization
+
+Annotate a tool method with `@Mcp.RolesAllowed`, `@Mcp.PolicyStatement`, or both, to require the caller to satisfy
+one or more user roles, a Helidon ABAC policy statement, or both (logical AND when both are present; roles within a
+single `@Mcp.RolesAllowed` use OR semantics — the caller needs at least one).
+
+```java
+@Mcp.Server
+class Server {
+
+    @Mcp.Tool("Read the monitor status")
+    @Mcp.RolesAllowed({"x-monitor", "x-admin"})
+    @Mcp.PolicyStatement("${subject.principal.name == 'monitor-user' && object.name == 'monitorStatus'}")
+    String monitorStatus() {
+        return "ready";
+    }
+}
+```
+
+A tool method without either annotation continues to work exactly as before; existing endpoint-level security (for
+example `security.web-server.paths`) is unaffected and still applies. `@Mcp.RolesAllowed` requires at least one
+non-blank role, and `@Mcp.PolicyStatement` requires a non-blank statement; invalid declarations fail the build with a
+`CodegenException`.
+
+Declaring these annotations has no effect on its own. It requires the optional
+`io.helidon.extensions.mcp:helidon4-extensions-mcp-security` dependency, plus a Helidon Security ABAC authorization
+provider (`abac`) configured for the application:
+
+```xml
+<dependency>
+    <groupId>io.helidon.extensions.mcp</groupId>
+    <artifactId>helidon4-extensions-mcp-security</artifactId>
+</dependency>
+```
+
+```yaml
+security:
+  providers:
+    - abac:
+```
+
+The integration **fails closed**: a protected tool denies every call whenever the authorization metadata cannot be
+conclusively evaluated, for example when the dependency above is absent, no `SecurityContext` is available on the
+request, the caller is not authenticated, or evaluation throws. A denial is always the same generic JSON-RPC error,
+which never includes role names, policy text, or the denial reason:
+
+```json
+{
+  "code": -32001,
+  "message": "Not authorized to call tool"
+}
+```
+
+A Helidon MP application using method-level ABAC (`PolicyValidator.PolicyStatement` on JAX-RS controllers) cannot
+reuse that annotation directly on an `@Mcp.Tool` method: this repository has no CDI interception around generated
+MCP tool calls. Instead, copy the policy expression text into `@Mcp.PolicyStatement`; it can run against the same
+configured policy executor. In v1, `tools/list` is not filtered by caller: protected tool names, descriptions, and
+schemas remain discoverable to any caller that can reach `tools/list`.
+
 ### Prompt
 
 `Prompts` allow servers to provide structured messages and instructions for interacting with language models. They guide MCP 

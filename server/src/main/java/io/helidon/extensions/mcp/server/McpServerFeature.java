@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -85,6 +86,8 @@ import static io.helidon.jsonrpc.core.JsonRpcError.INVALID_REQUEST;
 public final class McpServerFeature implements HttpFeature, RuntimeType.Api<McpServerConfig> {
     private static final int SESSION_CACHE_SIZE = 1000;
     private static final int RESOURCE_NOT_FOUND_CODE = -32002;
+    private static final int AUTHORIZATION_DENIED_CODE = -32001;
+    private static final String AUTHORIZATION_DENIED_MESSAGE = "Not authorized to call tool";
     private static final String DEFAULT_OIDC_METADATA_URI = "/.well-known/openid-configuration";
     private static final System.Logger LOGGER = System.getLogger(McpServerFeature.class.getName());
 
@@ -95,6 +98,7 @@ public final class McpServerFeature implements HttpFeature, RuntimeType.Api<McpS
     private final McpPagination<McpPrompt> prompts;
     private final McpPagination<McpResource> resources;
     private final McpPagination<McpResourceTemplate> resourceTemplates;
+    private final McpToolAuthorizer toolAuthorizer;
     private final Set<McpCapability> capabilities = new HashSet<>();
     private final McpSessions sessions = new McpSessions(SESSION_CACHE_SIZE);
     private final Map<String, McpCompletion> promptCompletions = new ConcurrentHashMap<>();
@@ -128,6 +132,7 @@ public final class McpServerFeature implements HttpFeature, RuntimeType.Api<McpS
         this.prompts = new McpPagination<>(prompts, config.promptsPageSize());
         this.resources = new McpPagination<>(resources, config.resourcesPageSize());
         this.resourceTemplates = new McpPagination<>(templates, config.resourceTemplatesPageSize());
+        this.toolAuthorizer = resolveToolAuthorizer(config, tools);
 
         builder.method(METHOD_PING, this::pingRpc);
         builder.method(METHOD_INITIALIZE, this::initializeRpc);
@@ -395,7 +400,6 @@ public final class McpServerFeature implements HttpFeature, RuntimeType.Api<McpS
             res.send();
             return;
         }
-        boolean error = false;
         McpSession session = foundSession.get();
         McpParameters parameters = new McpParameters(req.params(), req.params().asJsonObject());
 
@@ -410,23 +414,90 @@ public final class McpServerFeature implements HttpFeature, RuntimeType.Api<McpS
             return;
         }
 
+        McpTool selectedTool = tool.get();
         McpFeatures features = session.createFeatures(requestId, req, res);
+        McpRequest mcpRequest = McpRequest.builder()
+                .parameters(parameters.get("arguments"))
+                .meta(parameters.get("_meta"))
+                .features(features)
+                .protocolVersion(session.protocolVersion().text())
+                .sessionContext(session.context())
+                .requestContext(req.context())
+                .build();
+
+        if (selectedTool.authorization().isPresent() && !authorize(selectedTool, mcpRequest)) {
+            res.error(AUTHORIZATION_DENIED_CODE, AUTHORIZATION_DENIED_MESSAGE);
+            session.send(requestId, res);
+            return;
+        }
+
         session.beforeFeatureRequest(parameters, requestId);
-        McpToolResult result = tool.get()
-                .tool()
-                .apply(McpRequest.builder()
-                               .parameters(parameters.get("arguments"))
-                               .meta(parameters.get("_meta"))
-                               .features(features)
-                               .protocolVersion(session.protocolVersion().text())
-                               .sessionContext(session.context())
-                               .requestContext(req.context())
-                               .build());
+        McpToolResult result = selectedTool.tool().apply(mcpRequest);
         session.afterFeatureRequest(parameters, requestId);
 
-        var toolCall = session.serializer().toolCall(tool.get(), result).build();
+        var toolCall = session.serializer().toolCall(selectedTool, result).build();
         res.result(toolCall);
         session.send(requestId, res);
+    }
+
+    /**
+     * Evaluate the authorization metadata of a protected tool. This method never throws: an authorizer
+     * exception is logged for operators and treated as a denial, so that a protected tool always fails
+     * closed.
+     *
+     * @param tool the protected tool
+     * @param request the MCP request
+     * @return {@code true} when the call is authorized
+     */
+    private boolean authorize(McpTool tool, McpRequest request) {
+        if (toolAuthorizer == null) {
+            return false;
+        }
+        try {
+            return toolAuthorizer.authorize(tool, request);
+        } catch (Exception e) {
+            if (LOGGER.isLoggable(Level.WARNING)) {
+                LOGGER.log(Level.WARNING,
+                          "Tool authorizer threw an exception while evaluating tool \"" + tool.name() + "\"; denying the call",
+                          e);
+            }
+            return false;
+        }
+    }
+
+    /**
+     * Resolve the {@link McpToolAuthorizer} used to enforce tool authorization metadata.
+     * <p>
+     * A provider is not resolved, nor required, unless at least one tool carries authorization metadata.
+     *
+     * @param config the server configuration
+     * @param tools the tools registered with the server
+     * @return the resolved authorizer, or {@code null} when no protected tool exists or no provider is found
+     * @throws IllegalStateException when a protected tool exists and more than one {@link McpToolAuthorizer}
+     *         is discovered through {@link ServiceLoader}
+     */
+    private static McpToolAuthorizer resolveToolAuthorizer(McpServerConfig config, List<McpTool> tools) {
+        boolean hasProtectedTool = tools.stream().anyMatch(t -> t.authorization().isPresent());
+        if (!hasProtectedTool) {
+            return null;
+        }
+        if (config.toolAuthorizer().isPresent()) {
+            return config.toolAuthorizer().get();
+        }
+        List<McpToolAuthorizer> providers = ServiceLoader.load(McpToolAuthorizer.class)
+                .stream()
+                .map(ServiceLoader.Provider::get)
+                .toList();
+        if (providers.isEmpty()) {
+            return null;
+        }
+        if (providers.size() == 1) {
+            return providers.getFirst();
+        }
+        throw new IllegalStateException(
+                "Multiple McpToolAuthorizer providers found on the classpath: this server has a protected tool, so "
+                        + "exactly one provider must be selected explicitly with "
+                        + "McpServerConfig.Builder.toolAuthorizer(...)");
     }
 
     private void resourcesListRpc(JsonRpcRequest req, JsonRpcResponse res) {

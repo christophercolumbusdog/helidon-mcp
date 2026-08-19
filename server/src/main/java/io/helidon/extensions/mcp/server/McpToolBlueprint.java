@@ -86,4 +86,15 @@ interface McpToolBlueprint {
      * @return function
      */
     Function<McpRequest, McpToolResult> tool();
+
+    /**
+     * Authorization metadata for this tool. Empty when the tool has no authorization requirement, in which
+     * case the tool behaves exactly as it did before per-tool authorization was added: no authorizer is
+     * required, and existing endpoint security continues to apply unchanged.
+     *
+     * @return the authorization metadata
+     */
+    default Optional<McpToolAuthorization> authorization() {
+        return Optional.empty();
+    }
 }

@@ -39,3 +39,9 @@ security:
         audience: "mcp-scope"
         header-use: "true"
         frontend-uri: "http://localhost:6274/oauth/callback/debug"
+        # Keycloak puts realm roles under "realm_access.roles" instead of the default "groups" claim;
+        # role-protected-tool needs these mapped so the abac provider can see them as role grants.
+        jwt-groups-path: "realm_access/roles"
+    # Required for role-protected-tool and policy-protected-tool: OIDC only authenticates the caller, it
+    # does not evaluate MCP per-tool authorization metadata. Without this provider, both tools always deny.
+    - abac:
