@@ -16,6 +16,7 @@
 package io.helidon.extensions.mcp.server;
 
 import java.net.URI;
+import java.util.List;
 import java.util.Optional;
 
 import io.helidon.builder.api.Prototype;
@@ -90,6 +91,32 @@ final class McpDecorators {
         public void decorate(McpRoot.BuilderBase<?, ?> builder, URI uri) {
             if (!uri.getScheme().equals("file")) {
                 throw new McpRootException("Root URI scheme must be file");
+            }
+        }
+    }
+
+    /**
+     * Reject authorization metadata that cannot be evaluated: neither a role nor a policy statement, a blank
+     * role, or a present but blank policy statement. Policy-only metadata is valid.
+     * <p>
+     * See {@link io.helidon.extensions.mcp.server.McpToolAuthorization}.
+     */
+    static class ToolAuthorizationDecorator
+            implements Prototype.BuilderDecorator<McpToolAuthorization.BuilderBase<?, ?>> {
+        @Override
+        public void decorate(McpToolAuthorization.BuilderBase<?, ?> target) {
+            List<String> roles = target.roles();
+            Optional<String> policyStatement = target.policyStatement();
+
+            if (roles.isEmpty() && policyStatement.isEmpty()) {
+                throw new IllegalArgumentException("McpToolAuthorization requires at least one role or a policy "
+                                                            + "statement");
+            }
+            if (roles.stream().anyMatch(String::isBlank)) {
+                throw new IllegalArgumentException("McpToolAuthorization roles must not be blank");
+            }
+            if (policyStatement.filter(String::isBlank).isPresent()) {
+                throw new IllegalArgumentException("McpToolAuthorization policy statement must not be blank");
             }
         }
     }

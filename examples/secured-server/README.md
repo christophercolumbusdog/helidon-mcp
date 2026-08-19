@@ -4,6 +4,19 @@ This guide demonstrates how to secure a Helidon server using the Model Context P
 by Keycloak. Security support was introduced in the MCP specification as of the 
 [2025-03-26 release](https://modelcontextprotocol.io/specification/2025-03-26/basic/authorization).
 
+In addition to endpoint-level OIDC authentication, this example demonstrates **declarative per-tool authorization**:
+
+* `role-protected-tool` requires the `mcp-admin` role.
+* `policy-protected-tool` requires an ABAC policy statement (`${subject.principal.name == 'mcp-user'}`).
+
+Both tools rely on the optional `helidon4-extensions-mcp-security` module, an opt-in dependency (see `pom.xml`) that
+evaluates `McpToolAuthorization` metadata with Helidon Security's attribute based access control (ABAC). Declaring a
+role or a policy statement on a tool has no effect unless this dependency is present *and* an `abac` authorization
+provider is configured (see `application.yaml`): a protected tool fails closed (denies every call) whenever the
+authorization metadata cannot be evaluated, for example because the dependency is missing, no `SecurityContext` is
+available, or the caller is not authenticated. `secured-tool` has no authorization metadata and keeps working exactly
+as before, regardless of this module.
+
 ## Keycloak Configuration
 
 This example uses Keycloak as a third-party authentication provider. To get started, launch a local Keycloak instance via Docker:
@@ -62,6 +75,19 @@ Once created, you’ll see the new realm name in the top-left dropdown. You can 
   * **Valid Redirect URIs**: `http://localhost:6274/oauth/callback/debug`
   * **Web Origins**: `http://localhost:6274`
 6. Click **Save**
+7. `role-protected-tool` needs the caller's realm roles to reach the access token as a top-level `groups` claim:
+   Helidon 4.3.1's OIDC provider maps role grants only from that fixed claim (`Jwt.userGroups()`), and has no
+   option to read a nested claim such as Keycloak's default `realm_access.roles`. Add a dedicated mapper for it:
+
+  * Go to **Clients > mcp-client > Client scopes > mcp-client-dedicated > Configure a new mapper**
+  * Select mapper type **User Realm Role**
+  * **Name**: `realm roles as groups claim`
+  * **Token Claim Name**: `groups`
+  * **Multivalued**: On
+  * **Add to access token**: On; **Add to ID token** and **Add to userinfo**: Off
+  * Click **Save**
+
+(This mapper is already included when importing `mcp-realm.json` in step 1, Option A.)
 
 ---
 
@@ -161,7 +187,39 @@ The inspector will open in a browser window.
 ## 7. Test the Secured Application
 
 1. Go to the **Tools** tab
-2. Click **List Tools** and select the available tool
-3. Run the tool
+2. Click **List Tools**
+3. Run `secured-tool`
 
 If configured correctly, the username (e.g., `mcp-user`) will be returned.
+
+## 8. Test Declarative Per-Tool Authorization
+
+### `policy-protected-tool`
+
+Run `policy-protected-tool` while logged in as `mcp-user` (created in step 4): the policy statement matches the
+authenticated principal name, so the call succeeds.
+
+### `role-protected-tool`
+
+Run `role-protected-tool` while logged in as `mcp-user`: the call is denied with the generic JSON-RPC error
+`Not authorized to call tool` (code `-32001`), because `mcp-user` does not have the `mcp-admin` role yet.
+
+To grant access:
+
+1. In the Keycloak admin console, go to **Users > mcp-user > Role mapping**.
+2. Click **Assign role** and select the realm role `mcp-admin` (included in `mcp-realm.json`; create it manually
+   under **Realm roles** if you built the realm with Option B instead of importing the file).
+3. Get a new `access_token` from the inspector (tokens issued before the role was assigned do not carry it).
+4. Run `role-protected-tool` again: the call now succeeds. `mcp-admin`, and any other realm role assigned to
+   the user, is now present in the access token's `groups` claim (via the mapper from step 2.7), which is the
+   only claim Helidon 4.3.1's OIDC provider reads to populate role grants.
+
+Either denial disappearing when you remove the `helidon4-extensions-mcp-security` dependency, or the ABAC provider,
+is expected: without them, no `McpToolAuthorizer` can resolve, and both protected tools deny every call.
+
+> This example's role flow is verified by configuration inspection against the real Helidon 4.3.1
+> `OidcProvider`/`Jwt` sources (see `TenantAuthenticationHandler.buildSubject` and `Jwt.userGroups()`), and by
+> building/packaging the module; it has not been executed end-to-end against a running Keycloak instance as
+> part of this repository's automated build (no OIDC test infrastructure, such as Testcontainers, is wired up
+> here). Before relying on it, a maintainer should walk through this README against a live Keycloak instance
+> to confirm the `groups` claim mapper produces a token Helidon accepts as expected.

@@ -45,10 +45,14 @@ import static io.helidon.extensions.mcp.codegen.McpTypes.FUNCTION_REQUEST_TOOL_R
 import static io.helidon.extensions.mcp.codegen.McpTypes.LIST_MCP_TOOL_CONTENT;
 import static io.helidon.extensions.mcp.codegen.McpTypes.MCP_DESCRIPTION;
 import static io.helidon.extensions.mcp.codegen.McpTypes.MCP_NAME;
+import static io.helidon.extensions.mcp.codegen.McpTypes.MCP_POLICY_STATEMENT;
+import static io.helidon.extensions.mcp.codegen.McpTypes.MCP_ROLES_ALLOWED;
 import static io.helidon.extensions.mcp.codegen.McpTypes.MCP_TOOL;
+import static io.helidon.extensions.mcp.codegen.McpTypes.MCP_TOOL_AUTHORIZATION;
 import static io.helidon.extensions.mcp.codegen.McpTypes.MCP_TOOL_CONTENTS;
 import static io.helidon.extensions.mcp.codegen.McpTypes.MCP_TOOL_INTERFACE;
 import static io.helidon.extensions.mcp.codegen.McpTypes.MCP_TOOL_RESULT;
+import static io.helidon.extensions.mcp.codegen.McpTypes.OPTIONAL_MCP_TOOL_AUTHORIZATION;
 import static io.helidon.extensions.mcp.codegen.McpTypes.OPTIONAL_STRING;
 
 class McpToolCodegen {
@@ -74,8 +78,72 @@ class McpToolCodegen {
                     .addMethod(method -> addToolSchemaMethod(method, element))
                     .addMethod(method -> addToolMethod(method, classModel, element))
                     .addMethod(method -> addToolAnnotationsMethod(method, toolAnnotation))
-                    .addMethod(method -> addToolOutputSchema(method, toolAnnotation)));
+                    .addMethod(method -> addToolOutputSchema(method, toolAnnotation))
+                    .addMethod(method -> addToolAuthorizationMethod(method, element)));
         });
+    }
+
+    private void addToolAuthorizationMethod(Method.Builder builder, TypedElementInfo element) {
+        Optional<Annotation> rolesAnnotation = element.findAnnotation(MCP_ROLES_ALLOWED);
+        Optional<Annotation> policyAnnotation = element.findAnnotation(MCP_POLICY_STATEMENT);
+
+        builder.name("authorization")
+                .returnType(OPTIONAL_MCP_TOOL_AUTHORIZATION)
+                .addAnnotation(Annotations.OVERRIDE);
+
+        if (rolesAnnotation.isEmpty() && policyAnnotation.isEmpty()) {
+            builder.addContentLine("return Optional.empty();");
+            return;
+        }
+
+        List<String> roles = rolesAnnotation.isPresent()
+                ? validateRoles(element, rolesAnnotation.get())
+                : List.of();
+        Optional<String> policyStatement = policyAnnotation.isPresent()
+                ? Optional.of(validatePolicyStatement(element, policyAnnotation.get()))
+                : Optional.empty();
+
+        builder.addContent("return Optional.of(")
+                .addContent(MCP_TOOL_AUTHORIZATION)
+                .addContentLine(".builder()")
+                .increaseContentPadding();
+        for (String role : roles) {
+            builder.addContent(".addRole(\"")
+                    .addContent(role)
+                    .addContentLine("\")");
+        }
+        policyStatement.ifPresent(policy -> builder.addContent(".policyStatement(\"")
+                .addContent(policy.replace("\"", "\\\""))
+                .addContentLine("\")"));
+        builder.addContentLine(".build());")
+                .decreaseContentPadding();
+    }
+
+    List<String> validateRoles(TypedElementInfo element, Annotation rolesAnnotation) {
+        List<String> roles = rolesAnnotation.stringValues().orElseGet(List::of);
+        if (roles.isEmpty()) {
+            throw new CodegenException("@Mcp.RolesAllowed on method \"" + element.elementName()
+                                                + "\" requires at least one non-blank role",
+                                       element.originatingElementValue());
+        }
+        for (String role : roles) {
+            if (role.isBlank()) {
+                throw new CodegenException("@Mcp.RolesAllowed on method \"" + element.elementName()
+                                                    + "\" must not contain a blank role",
+                                           element.originatingElementValue());
+            }
+        }
+        return roles;
+    }
+
+    String validatePolicyStatement(TypedElementInfo element, Annotation policyAnnotation) {
+        String policy = policyAnnotation.stringValue().orElse("");
+        if (policy.isBlank()) {
+            throw new CodegenException("@Mcp.PolicyStatement on method \"" + element.elementName()
+                                                + "\" requires a non-blank policy statement",
+                                       element.originatingElementValue());
+        }
+        return policy;
     }
 
     private void addToolOutputSchema(Method.Builder builder, Annotation toolAnnotation) {

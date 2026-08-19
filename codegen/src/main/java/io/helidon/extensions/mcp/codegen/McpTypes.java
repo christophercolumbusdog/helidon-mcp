@@ -39,6 +39,8 @@ final class McpTypes {
     static final TypeName MCP_PROMPT = TypeName.create("io.helidon.extensions.mcp.server.Mcp.Prompt");
     static final TypeName MCP_VERSION = TypeName.create("io.helidon.extensions.mcp.server.Mcp.Version");
     static final TypeName MCP_RESOURCE = TypeName.create("io.helidon.extensions.mcp.server.Mcp.Resource");
+    static final TypeName MCP_ROLES_ALLOWED = TypeName.create("io.helidon.extensions.mcp.server.Mcp.RolesAllowed");
+    static final TypeName MCP_POLICY_STATEMENT = TypeName.create("io.helidon.extensions.mcp.server.Mcp.PolicyStatement");
     static final TypeName MCP_COMPLETION = TypeName.create("io.helidon.extensions.mcp.server.Mcp.Completion");
     static final TypeName MCP_DESCRIPTION = TypeName.create("io.helidon.extensions.mcp.server.Mcp.Description");
     static final TypeName MCP_TOOLS_PAGE_SIZE = TypeName.create("io.helidon.extensions.mcp.server.Mcp.ToolsPageSize");
@@ -72,6 +74,7 @@ final class McpTypes {
     static final TypeName MCP_COMPLETION_TYPE = TypeName.create("io.helidon.extensions.mcp.server.McpCompletionType");
     static final TypeName MCP_COMPLETION_INTERFACE = TypeName.create("io.helidon.extensions.mcp.server.McpCompletion");
     static final TypeName MCP_TOOL_ANNOTATIONS = TypeName.create("io.helidon.extensions.mcp.server.McpToolAnnotations");
+    static final TypeName MCP_TOOL_AUTHORIZATION = TypeName.create("io.helidon.extensions.mcp.server.McpToolAuthorization");
     static final TypeName MCP_RESOURCE_CONTENT = TypeName.create("io.helidon.extensions.mcp.server.McpResourceContent");
     static final TypeName MCP_RESOURCE_CONTENTS = TypeName.create("io.helidon.extensions.mcp.server.McpResourceContents");
     static final TypeName MCP_COMPLETION_REQUEST = TypeName.create("io.helidon.extensions.mcp.server.McpCompletionRequest");
@@ -92,6 +95,9 @@ final class McpTypes {
     static final TypeName HTTP_ROUTING_BUILDER = TypeName.create("io.helidon.webserver.http.HttpRouting.Builder");
     static final TypeName GLOBAL_SERVICE_REGISTRY = TypeName.create("io.helidon.service.registry.GlobalServiceRegistry");
     static final TypeName OPTIONAL_STRING = TypeName.builder(TypeNames.OPTIONAL).addTypeArgument(TypeNames.STRING).build();
+    static final TypeName OPTIONAL_MCP_TOOL_AUTHORIZATION = TypeName.builder(TypeNames.OPTIONAL)
+            .addTypeArgument(MCP_TOOL_AUTHORIZATION)
+            .build();
     static final TypeName LIST_MCP_PROMPT_ARGUMENT = TypeName.builder(LIST)
             .addTypeArgument(MCP_PROMPT_ARGUMENT)
             .build();

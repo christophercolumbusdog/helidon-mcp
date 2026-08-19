@@ -44,6 +44,20 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
+            <!-- Optional dependency that enables declarative per-tool authorization (@Mcp.RolesAllowed,
+                 @Mcp.PolicyStatement, or the McpToolAuthorization builder) for tools registered by this
+                 server. Without it, tools with authorization metadata would fail closed. -->
+            <groupId>io.helidon.extensions.mcp</groupId>
+            <artifactId>helidon4-extensions-mcp-security</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <!-- Policy executor for the @Mcp.PolicyStatement / policyStatement() ABAC expression used by
+                 PolicyProtectedTool. -->
+            <groupId>io.helidon.security.abac</groupId>
+            <artifactId>helidon-security-abac-policy-el</artifactId>
+        </dependency>
+        <dependency>
             <groupId>io.helidon.webserver</groupId>
             <artifactId>helidon-webserver-security</artifactId>
         </dependency>

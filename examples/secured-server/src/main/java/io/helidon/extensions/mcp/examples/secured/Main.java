@@ -57,7 +57,9 @@ public class Main {
         builder.addFeature(
                 McpServerConfig.builder()
                         .config(config.get("mcp.server"))
-                        .addTool(new SecuredTool()))
+                        .addTool(new SecuredTool())
+                        .addTool(new RoleProtectedTool())
+                        .addTool(new PolicyProtectedTool()))
                 .addFeature(OidcFeature.create(config));
     }
 }

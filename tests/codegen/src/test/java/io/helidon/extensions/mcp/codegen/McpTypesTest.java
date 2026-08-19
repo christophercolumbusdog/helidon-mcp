@@ -58,6 +58,7 @@ import io.helidon.extensions.mcp.server.McpSampling;
 import io.helidon.extensions.mcp.server.McpServerConfig;
 import io.helidon.extensions.mcp.server.McpTool;
 import io.helidon.extensions.mcp.server.McpToolAnnotations;
+import io.helidon.extensions.mcp.server.McpToolAuthorization;
 import io.helidon.extensions.mcp.server.McpToolContent;
 import io.helidon.extensions.mcp.server.McpToolContents;
 import io.helidon.extensions.mcp.server.McpToolResult;
@@ -154,9 +155,13 @@ class McpTypesTest {
         checkField(toCheck, checked, fields, "MCP_RESOURCE_UNSUBSCRIBER", Mcp.ResourceUnsubscriber.class);
         checkField(toCheck, checked, fields, "MCP_RESOURCE_SUBSCRIBER_INTERFACE", McpResourceSubscriber.class);
         checkField(toCheck, checked, fields, "MCP_RESOURCE_UNSUBSCRIBER_INTERFACE", McpResourceUnsubscriber.class);
+        checkField(toCheck, checked, fields, "MCP_ROLES_ALLOWED", Mcp.RolesAllowed.class);
+        checkField(toCheck, checked, fields, "MCP_POLICY_STATEMENT", Mcp.PolicyStatement.class);
+        checkField(toCheck, checked, fields, "MCP_TOOL_AUTHORIZATION", McpToolAuthorization.class);
 
         checkField(toCheck, checked, fields, "SERVICES", Services.class);
         checkField(toCheck, checked, fields, "OPTIONAL_STRING", Optional.class);
+        checkField(toCheck, checked, fields, "OPTIONAL_MCP_TOOL_AUTHORIZATION", Optional.class);
         checkField(toCheck, checked, fields, "CONSUMER_REQUEST", Consumer.class);
         checkField(toCheck, checked, fields, "GLOBAL_SERVICE_REGISTRY", GlobalServiceRegistry.class);
         checkField(toCheck, checked, fields, "LIST_STRING", List.class);

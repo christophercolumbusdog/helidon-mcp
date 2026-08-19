@@ -39,3 +39,11 @@ security:
         audience: "mcp-scope"
         header-use: "true"
         frontend-uri: "http://localhost:6274/oauth/callback/debug"
+        # Helidon 4.3.1's OidcProvider maps Role grants only from the fixed top-level "groups" access
+        # token claim (Jwt.userGroups(), read when useJwtGroups is true, which is the default). There is
+        # no config option to point it at a different/nested claim such as Keycloak's realm_access.roles.
+        # role-protected-tool therefore relies on a Keycloak protocol mapper (see mcp-realm.json /
+        # README.md) that copies the user's realm roles into that "groups" claim.
+    # Required for role-protected-tool and policy-protected-tool: OIDC only authenticates the caller, it
+    # does not evaluate MCP per-tool authorization metadata. Without this provider, both tools always deny.
+    - abac:

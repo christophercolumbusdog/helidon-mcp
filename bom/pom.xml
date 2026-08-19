@@ -45,6 +45,11 @@
                 <artifactId>helidon4-extensions-mcp-server</artifactId>
                 <version>${helidon.mcp.version}</version>
             </dependency>
+            <dependency>
+                <groupId>io.helidon.extensions.mcp</groupId>
+                <artifactId>helidon4-extensions-mcp-security</artifactId>
+                <version>${helidon.mcp.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 </project>

@@ -37,5 +37,7 @@ module io.helidon.extensions.mcp.server {
 
     requires static io.helidon.common.features.api;
 
+    uses io.helidon.extensions.mcp.server.McpToolAuthorizer;
+
     exports io.helidon.extensions.mcp.server;
 }

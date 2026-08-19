@@ -138,6 +138,66 @@ McpToolContent audio = McpToolContents.audioContent(wavAudioBytes(), MediaTypes.
 The JSON Schema defines the required input fields for a tool. It helps the client understand expected input formats and provides 
 validation. Define it by returning a JSON string from the `schema()` method.
 
+#### Per-Tool Authorization
+
+A tool can require one or more user roles, a Helidon ABAC policy statement, or both, using the `authorization()` method or
+the `McpTool` builder. When both are declared, the role check and the policy statement must both permit the call
+(logical AND); multiple roles within a single declaration use OR semantics (the caller needs at least one).
+
+```java
+McpTool tool = McpTool.builder()
+        .name("monitorStatus")
+        .description("Read the monitor status")
+        .schema("")
+        .authorization(McpToolAuthorization.builder()
+                .addRole("x-monitor")
+                .addRole("x-admin")
+                .policyStatement("${subject.principal.name == 'monitor-user' && object.name == 'monitorStatus'}")
+                .build())
+        .tool(request -> McpToolResult.builder()
+                .addContent(McpToolContents.textContent("ready"))
+                .build())
+        .build();
+```
+
+A `McpTool` implementation can override `authorization()` the same way. A tool without authorization metadata
+continues to work exactly as before; existing endpoint-level security (for example `security.web-server.paths`) is
+unaffected and still applies.
+
+Declaring authorization metadata has no effect on its own. It requires the optional
+`io.helidon.extensions.mcp:helidon4-extensions-mcp-security` dependency, plus a Helidon Security ABAC authorization
+provider (`abac`) configured for the application:
+
+```xml
+<dependency>
+    <groupId>io.helidon.extensions.mcp</groupId>
+    <artifactId>helidon4-extensions-mcp-security</artifactId>
+</dependency>
+```
+
+```yaml
+security:
+  providers:
+    - abac:
+```
+
+The integration **fails closed**: a protected tool denies every call whenever the authorization metadata cannot be
+conclusively evaluated, for example when the dependency above is absent, no `SecurityContext` is available on the
+request, the caller is not authenticated, or evaluation throws. A denial is always the same generic JSON-RPC error,
+which never includes role names, policy text, or the denial reason:
+
+```json
+{
+  "code": -32001,
+  "message": "Not authorized to call tool"
+}
+```
+
+A custom authorizer can be registered explicitly with `McpServerFeature.builder().toolAuthorizer(...)`, or discovered
+automatically through `ServiceLoader` when exactly one `McpToolAuthorizer` implementation is on the classpath.
+In v1, `tools/list` is not filtered by caller: protected tool names, descriptions, and schemas remain discoverable to
+any caller that can reach `tools/list`.
+
 ### Prompts
 
 `Prompts` allow servers to provide structured messages and instructions for interacting with language models. They improve 
